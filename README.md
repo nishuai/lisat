@@ -28,7 +28,6 @@ You can install the development version of `lisat` from GitHub:
 devtools::install_github("nishuai/lisat")
 ```
 
-*(Note: Please replace `yourusername` with your actual GitHub username)*
 
 ### Dependencies
 
