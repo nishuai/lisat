@@ -25,7 +25,7 @@ You can install the development version of `lisat` from GitHub:
 
 ``` r
 # install.packages("devtools")
-devtools::install_github("yourusername/lisat")
+devtools::install_github("nishuai/lisat")
 ```
 
 *(Note: Please replace `yourusername` with your actual GitHub username)*
