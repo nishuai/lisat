@@ -1,0 +1,184 @@
+---
+title: "Introduction to LISAT"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Introduction to LISAT}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+## Introduction
+
+The `lisat` (Longitudinal Integration Site Analysis Toolkit) package provides a comprehensive set of tools for the analysis of longitudinal integration site data. This vignette demonstrates the basic workflow, including data simulation, annotation, statistical modeling, and visualization.
+
+## Setup
+
+First, load the `lisat` package.
+
+```{r setup}
+library(lisat)
+```
+
+## Step 1: Data Preparation
+
+We will generate simulated chromosome integration site (IS) raw data to demonstrate the functionality of the package.
+
+```{r generate_data}
+set.seed(12345)
+
+n_rows <- 10000
+sample_names <- c("Sample_A", "Sample_B", "Sample_C")
+chr_list <- paste0(1:23)
+
+# Generate random data
+Sample <- sample(sample_names, size = n_rows, replace = TRUE)
+SCount <- sample(1:1000, size = n_rows, replace = TRUE)
+Chr <- sample(chr_list, size = n_rows, replace = TRUE)
+Locus <- sample(1:150000000, size = n_rows, replace = TRUE)
+
+IS_raw <- data.frame(
+  Sample = Sample,
+  SCount = SCount,
+  Chr = Chr,
+  Locus = Locus,
+  stringsAsFactors = FALSE
+)
+
+# Simulate some high-frequency clones (updated)
+IS_raw$SCount[1:100] <- sample(500000:800000, 100, replace = TRUE)
+
+head(IS_raw)
+```
+
+Validate the data structure:
+
+```{r validate_data}
+check_validity <- validate_IS_raw(IS_raw)
+```
+
+Create a patient-timepoint mapping table for longitudinal analysis.
+
+```{r patient_meta}
+Patient_timepoint <- data.frame(
+  Sample_ID = c("Sample_A", "Sample_B", "Sample_C"),
+  Time_Point = c("3m", "12m", "24m"),
+  Patient_ID = rep("Pt1", 3),
+  stringsAsFactors = FALSE
+)
+
+head(Patient_timepoint)
+```
+
+## Step 2: Genomic Feature Annotation
+
+Annotate the integration sites with genomic features.
+*Note: This step requires `TxDb.Hsapiens.UCSC.hg38.knownGene` and `org.Hs.eg.db` packages.*
+
+```{r get_features, message=FALSE, warning=FALSE}
+if (requireNamespace("TxDb.Hsapiens.UCSC.hg38.knownGene", quietly = TRUE) &&
+    requireNamespace("org.Hs.eg.db", quietly = TRUE)) {
+    
+  IS_raw <- get_feature(IS_raw)
+  
+  # Check for overlap with specific genomic elements
+  IS_raw <- Enhancer_check(IS_raw)
+  IS_raw <- Promotor_check(IS_raw)
+  IS_raw <- Safeharbor_check(IS_raw)
+  
+  names(IS_raw)
+} else {
+  message("Skipping annotation: Required annotation packages not installed.")
+}
+```
+
+## Step 3: Integration Site Analysis
+
+### Common Integration Sites (CIS)
+
+Identify regions with recurrent integration sites.
+
+```{r cis_analysis}
+CIS_top <- CIS(IS_raw = IS_raw, connect_distance = 50000)
+CIS_by_sample <- CIS_overlap(CIS_data = CIS_top, IS_raw = IS_raw)
+CIS_by_sample
+```
+
+### Chromosome Distribution
+
+```{r chr_dist, fig.width=10, fig.height=7, out.width="100%"}
+chr_stats <- chr_distribution(IS_raw)
+print(chr_stats)
+```
+
+### Gene Set Overlap
+
+```{r gene_sets, fig.width=10, fig.height=8, out.width="100%"}
+if (requireNamespace("TxDb.Hsapiens.UCSC.hg38.knownGene", quietly = TRUE) &&
+    requireNamespace("org.Hs.eg.db", quietly = TRUE)) {
+  # Adverse Event genes
+  ae_overlap <- is_in_AE_gene(IS_raw = IS_raw, Distance = 100000)
+  
+  # Cancer Genes
+  cg_overlap <- is_in_CG_gene(IS_raw = IS_raw, threashold = 0.001)
+  print(cg_overlap)
+  
+  # Immune Genes
+  immune_overlap <- is_in_immune_gene(IS_raw = IS_raw, threashold = 0.001)
+}
+```
+
+## Step 4: Longitudinal Analysis (PMD)
+
+Perform Population Matching Distribution (PMD) analysis.
+
+```{r pmd_analysis, fig.width=10, fig.height=7, out.width="100%"}
+PMD_data <- pmd_analysis(IS_raw = IS_raw, Patient_timepoint = Patient_timepoint)
+head(PMD_data)
+# Plot Richness and Evenness
+plot_richness_evenness(PMD_data = PMD_data)
+
+# Analyze linked timepoints
+linked_data <- Linked_timepoints(IS_raw = IS_raw, Patient_timepoint = Patient_timepoint)
+print(linked_data)
+```
+
+## Step 5: Clonal Dominance Analysis
+
+Analyze potential dominant clones using cumulative distribution.
+
+```{r clonal_dominance, fig.width=10, fig.height=6, out.width="100%"}
+IS_ratio <- fit_cum_simple(IS_raw$SCount)
+print(Cumulative_curve(IS_ratio)) # Function for plotting
+```
+
+## Step 6: Visualization
+
+### Treemap
+
+```{r treemap, fig.width=10, fig.height=8, out.width="100%"}
+if (requireNamespace("treemapify", quietly = TRUE)) {
+    IS_treemap(IS_raw = IS_raw, Patient_timepoint = Patient_timepoint)
+}
+```
+
+### Region Counts
+
+```{r region_counts, fig.width=10, fig.height=7, out.width="100%"}
+Region_data <- Count_regions(IS_raw = IS_raw, Patient_timepoint = Patient_timepoint)
+head(Region_data)
+plot_regions(Region_data = Region_data)
+```
+
+### Ideogram
+
+```{r ideogram, eval=FALSE}
+# Example usage:
+# ideogram_plot(IS_raw, output_dir = tempdir())
+```
