@@ -2,65 +2,87 @@
 [![Coverage](https://img.shields.io/codecov/c/github/lima1/PureCN.svg)](https://codecov.io/gh/lima1/PureCN)
 [![License: Artistic-2.0](https://img.shields.io/badge/License-Artistic%202.0-0298c3.svg)](https://opensource.org/licenses/Artistic-2.0) 
 
-# 💡 Cesar
+# 💡 Lisat
 
-A tool developed for tumor-only copy number estimation for targeted capture sequencing data with segmentation and anchor-based recalibration.
+<!-- badges: start -->
+<!-- badges: end -->
 
-**一款在靶向panel中寻找特定基因拷贝数变异的软件。**
+## Overview
 
-* [中文版说明文档](https://github.com/nishuai/Cesar/blob/master/docs/Casar%E6%A3%80%E6%B5%8BNSCLC%E6%82%A3%E8%80%85ctDNA%E4%B8%AD%E7%9A%84CNV.docx?raw=true)
+**`lisat`** is a comprehensive R toolkit designed for the analysis of longitudinal virus integration site data. It streamlines the entire workflow of integration site analysis, from data cleaning and quality control to statistical modeling and rich visualization. With support for simple input formats, `lisat` provides a user-friendly and powerful suite of functions for researchers investigating viral integration sites, clonal tracking, and gene therapy safety.
 
+## Key Features
 
-## 🏘️ Installation
+- **Genomic Feature Annotation**: Automatically annotate integration sites with genomic features. Easily check for overlaps with critical genomic regions including enhancers, promoters, safe harbors, adverse event (AE) genes, cancer genes, and immune-related genes.
+- **Integration Site Analysis (CIS)**: Identify Common Integration Sites (CIS) to discover regions with recurrent integrations and analyze overall chromosome distributions.
+- **Longitudinal & PMD Analysis**: Track clonal dynamics over multiple timepoints using Population Matching Distribution (PMD) analysis. Evaluate clonal richness and evenness across different patient samples.
+- **Clonal Dominance Analysis**: Identify and analyze potential dominant clones using cumulative distribution fitting models.
+- **Rich Visualization**: Built-in plotting functions for creating high-quality, publication-ready visualizations, including treemaps, cumulative curves, region count pie charts, and chromosome ideograms.
 
-To install Cesar, simply copy the repository to your local destination
+## Installation
 
-```
-wget https://github.com/nishuai/Cesar/archive/master.zip
-unzip master.zip && mv master Cesar
-```
-And make sure the `MASS` package is installed in your local environment, in R:
-```
-install.packages('MASS')
-```
+You can install the development version of `lisat` from GitHub:
 
-## ⚡ How to use
-
-Cesar is designed for use in a specific target capture sequencing panel with all genes to test for CNV status. It detectets abnormal CNV status by learning from a bunch of normal samples with no CNV. 
-
-A usual learning paradigm is to take 10-100 normal samples with site specific coverage information in a pileup format. The first 3 columns in a pileup file should be Chromosome (chr1), position (122975) and read depth (3006). However, smaller number of training samples (like 5) is also allowed. If you would like to get your hands on it before using your own data, you can try to run an example demo comes with Cesar:
-
-### Example run for trainning Cesar:
-
-#### Training Cesar
-```
-Rscript Training_anchors.R inputdata/example.bed mpileups/normal_pileups/ output_dir
-```
-Cesar takes a sorted and non-overlaping bed file, if you are not sure if your bed file meets the Cesar standard, you can provide `Training_anchors.R` with it and Cesar will tell you if the bed file is OK. Cesar also comes with a function to revise your bed file, simply use `R/revise_bed.R` to make sure your bed file is sorted and all checked.
-
-To reduce perturbations in depth estimation, we suggest not to include bed regions with a span of less than 30 bp. `R/revise_bed.R` also comes with a function to remove bed regions with less than a user-specivied number of nucleotides.
-
-#### Revise your bed file
-```
-Rscript R/revise_bed.R inputdata/example.bed 30 output_dir
+``` r
+# install.packages("devtools")
+devtools::install_github("yourusername/lisat")
 ```
 
-`R/revise_bed` takes 1-3 arguments, if only the first one is give, it will automatically remove bed regions with span less than 30 base pairs. If output_dir is not provided, the revised bed file will be stored just beside the input bed file in the same directory.
+*(Note: Please replace `yourusername` with your actual GitHub username)*
 
-#### Training result
+### Dependencies
 
-Depending on the number of training samples given, the training process will typically take about some few minuts to complete (0.2 minute per sample for 2M sample). This step will generate 2 model files for Cesar.R in Rdata format. the `output_dir/model_anchors.rda` and `output_dir/model_parameters.rda`.
+For full annotation capabilities, ensure the following Bioconductor packages are installed:
 
-#### Detecting CNV using Cesar
-After learning form normal samples, Cesar can be used to detect CNV in a test sample:
+``` r
+if (!requireNamespace("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install(c("TxDb.Hsapiens.UCSC.hg38.knownGene", "org.Hs.eg.db"))
 ```
-Rscript Cesar.R mpileups/test.mpileup output_dir/model_anchors.rda output_dir/model_parameters.rda outputdir
+
+## Quick Start
+
+Here is a basic example showing how to validate your raw data and perform an initial analysis:
+
+``` r
+library(lisat)
+
+# 1. Prepare your raw integration site data
+# (Requires columns: Sample, SCount, Chr, Locus)
+head(IS_raw)
+
+# 2. Validate the data structure
+check_validity <- validate_IS_raw(IS_raw)
+
+# 3. Annotate Genomic Features
+# Requires TxDb.Hsapiens.UCSC.hg38.knownGene and org.Hs.eg.db
+IS_annotated <- get_feature(IS_raw)
+IS_annotated <- Enhancer_check(IS_annotated)
+IS_annotated <- Promotor_check(IS_annotated)
+IS_annotated <- Safeharbor_check(IS_annotated)
+
+# 4. Identify Common Integration Sites (CIS)
+CIS_top <- CIS(IS_raw = IS_annotated, connect_distance = 50000)
+CIS_overlap(CIS_data = CIS_top, IS_raw = IS_annotated)
+
+# 5. Longitudinal Analysis
+# Requires a Patient_timepoint metadata dataframe
+PMD_data <- pmd_analysis(IS_raw = IS_annotated, Patient_timepoint = Patient_timepoint)
+plot_richness_evenness(PMD_data = PMD_data)
 ```
-The bed file used here should be ensically the same as that used in training, However, in this step Cesar will automatically detect gene names at the 4th column of the bed file, trying to call gene-level CNVs. If the 4th column is not given, Cesar will simply call CNV in a global manner.
 
-Cesar will generate a pdf file to visualize global CNV status in the sample. If the corresponding gene name is given for each bed region, it will also generate a table with genes having the most CNV. 
+For a comprehensive guide, please refer to the package vignette:
+``` r
+vignette("lisat-intro", package = "lisat")
+```
 
+## Citation
 
+If you use `lisat` in your research, please cite our preprint:
 
- 
+> Ni, S. et al. (2025). *[Insert exact title from bioRxiv here]* bioRxiv. DOI: [10.64898/2025.12.20.695672v1](https://www.biorxiv.org/content/10.64898/2025.12.20.695672v1)
 
+## License
+
+This project is licensed under the MIT License - see the [LICENSE.md](LICENSE.md) file for details.
