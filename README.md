@@ -80,7 +80,7 @@ vignette("lisat-intro", package = "lisat")
 
 If you use `lisat` in your research, please cite our preprint:
 
-> Ni, S. et al. (2025). *[Insert exact title from bioRxiv here]* bioRxiv. DOI: [10.64898/2025.12.20.695672v1](https://www.biorxiv.org/content/10.64898/2025.12.20.695672v1)
+> Ni, S. et al. (2025). *LISA: A Comprehensive R Package for Lentiviral Integration Site Analysis in Gene Therapy Safety Assessment* bioRxiv. DOI: [10.64898/2025.12.20.695672v1](https://www.biorxiv.org/content/10.64898/2025.12.20.695672v1)
 
 ## License
 
